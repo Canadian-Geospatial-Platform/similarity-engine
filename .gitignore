@@ -1,2 +1,7 @@
 *.bin.gz
 *.bin
+
+
+Jupyter_notebooks/cache_dir/
+Jupyter_notebooks/checkpoints/
+Jupyter_notebooks/runs/
