@@ -3,16 +3,20 @@ import boto3
 import logging 
 from botocore.exceptions import ClientError
 import pandas as pd 
+import numpy as np
+import json
+import datetime
 import io
 import os 
 
 from gensim.models import Word2Vec
 from sklearn.metrics.pairwise import cosine_similarity
 from gensim import matutils
-import numpy as np
 from tqdm import tqdm
+from dynamodb import * 
 
 
+#dev setting 
 file_name = "Processed_records.parquet"
 bucket_name_nlp = "nlp-data-preprocessing"
 file_name_origianl = "records.parquet"
@@ -27,14 +31,10 @@ def lambda_handler(event, context):
         
     # Read the preprocessed data from S3 
     df_en = open_S3_file_as_df(bucket_name_nlp, file_name)
-    
-    # Get a sample of 500 rows as the training data 
-    df = df_en[['features_properties_id', 'features_properties_title_en', 'metadata_en_processed']]
-    #df = df.sample(n=500, random_state=1)
     # Use all data to train the model
-    df.head()
-    print(df.shape)
-
+    df = df_en[['features_properties_id', 'features_properties_title_en', 'features_properties_title_fr','metadata_en_processed']]
+    print(f'The shape of the preprocessed df is {df.shape}')
+    
     # Prepare the input for the Word2Vec model
     sentences = df['metadata_en_processed'].apply(lambda x: x.split(' ')).tolist()
     
@@ -51,26 +51,82 @@ def lambda_handler(event, context):
     # Calculate similarity between each vector and all others
     similarity_matrix = cosine_similarity(np.array(vectors.tolist()))
     
-    # Initialize new columns for the top 5 similar texts
-    df['sim1'], df['sim2'], df['sim3'], df['sim4'], df['sim5'] = "", "", "", "", ""
+    """ Option 1: merge the similar results with records.parquet directly 
+    # Initialize new columns for the top 10 similar texts
+    df['sim1'], df['sim2'], df['sim3'], df['sim4'], df['sim5'],df['sim6'], df['sim7'], df['sim8'], df['sim9'], df['sim10'] = "", "", "", "", "","", "", "", "", ""
     
-    # For each text, find the top 5 most similar texts and append their 'features_properties_title_en' as new columns
+    # For each text, find the top 10 most similar texts and append their 'features_properties_title_en' as new columns
     df.reset_index(drop=True, inplace=True)
     for i in tqdm(range(similarity_matrix.shape[0])):
-        top_5_similar = np.argsort(-similarity_matrix[i, :])[1:6]  # Exclude the text itself
-        df.loc[i, ['sim1', 'sim2', 'sim3', 'sim4', 'sim5']] = df.loc[top_5_similar, 'features_properties_title_en'].values
+        top_10_similar = np.argsort(-similarity_matrix[i, :])[1:11]  # Exclude the text itself
+        df.loc[i, ['sim1', 'sim2', 'sim3', 'sim4', 'sim5','sim6', 'sim7', 'sim8', 'sim9', 'sim10']] = df.loc[top_10_similar, 'features_properties_id'].values
 
     # Read the original parquet file and merge by features_properties_id
     df_original = open_S3_file_as_df(bucket_name, file_name_origianl)
-    merged_df = df_original.merge(df[['features_properties_id', 'sim1', 'sim2', 'sim3', 'sim4', 'sim5']], on='features_properties_id', how='left')
+    merged_df = df_original.merge(df[['features_properties_id', 'sim1', 'sim2', 'sim3', 'sim4', 'sim5','sim6', 'sim7', 'sim8', 'sim9', 'sim10']], 
+    on='features_properties_id', how='left')
+    print(f'the shape of original parquet file is {df_original.shape}')
     
     # Save to temp  folder, see https://iotespresso.com/temporary-storage-during-aws-lambda-runtime-python/
     save_path = os.path.join(os.getcwd(), 'mydir', 'merged_df')
     merged_df.to_csv(save_path)
     df_fetched= pd.read_csv(save_path)
-    
+    print(f'the shape of merged parquet file is {merged_df.shape}')
     # upload merged dataframe to S3
     upload_dataframe_to_s3_as_parquet(df=df_fetched, bucket_name=bucket_name_nlp, file_key='sim_word2vec_records.parquet')
+    """ 
+    
+    #Option 2: upload the similar results as a dynamodb, and merge the tabke with records.parquet everytime when records.parquet is updated 
+    df['similarity'] = np.nan  # Initialize the column
+    # For each text, find the top 10 most similar texts and save them as a JSON array object in the 'similarity' column
+    df.reset_index(drop=True, inplace=True)
+    for i in tqdm(range(similarity_matrix.shape[0])):
+        top_10_similar = np.argsort(-similarity_matrix[i, :])[1:11]  # Exclude the text itself
+        sim_array = []
+        for j, idx in enumerate(top_10_similar):
+            sim_obj = {
+            'sim': f'sim{j+1}',
+            'features_properties_id': df.loc[idx, 'features_properties_id'],
+            'features_properties_title_en': df.loc[idx, 'features_properties_title_en'],
+            'features_properties_title_fr': df.loc[idx, 'features_properties_title_fr']
+            }
+            sim_array.append(sim_obj)
+        df.loc[i, 'similarity'] = json.dumps(sim_array)
+        
+    df = df[['features_properties_id', 'similarity']]
+    print(print(f'The shape of df after cosine similarity analysis is {df.shape}'))
+    
+    # Create a dynamoDB table 'similarity, if similarity is exist, delete the old one first 
+    # Check if the table already exists
+    dynamodb = boto3.resource('dynamodb')
+    existing_tables = dynamodb.meta.client.list_tables()['TableNames']
+    if 'similarity' in existing_tables:
+        print("Table 'similarity' already exists. Deleting the similarity table is required")
+        try: 
+            """
+            Gets a waiter object that waits for a DynamoDB table to be deleted. 
+            This waiter will poll the DynamoDB service to check if the table still exists, and will stop once the table is deleted.
+            """
+            client = boto3.client('dynamodb')
+            delete_table(TableName='similarity')
+            waiter = client.get_waiter('table_not_exists')
+            waiter.wait(TableName='similarity')
+            print('Before create')
+        except ClientError as e:
+            print(e)
+    #Create table         
+    try: 
+        client = boto3.client('dynamodb')
+        create_table_similarity(TableName='similarity', dynamodb=None)
+        waiter = client.get_waiter('table_exists')
+        waiter.wait(TableName='similarity')
+    except ClientError as e:
+            print(e)  
+    #Batch write to table 
+    batch_write_items_into_table(df, TableName='similarity')
+    
+    
+    
     
 # Function to read the parquet file as pandas dataframe 
 def open_S3_file_as_df(bucket_name, file_name):
