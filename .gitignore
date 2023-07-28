@@ -6,3 +6,6 @@ Jupyter_notebooks/cache_dir/
 Jupyter_notebooks/checkpoints/
 Jupyter_notebooks/runs/
 Jupyter_notebooks/outputs/
+Jupyter_notebooks/wandb
+
+wandb_config.json
