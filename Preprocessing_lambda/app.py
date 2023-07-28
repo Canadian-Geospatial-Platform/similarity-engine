@@ -18,7 +18,7 @@ import re
 file_name = "records.parquet"
 bucket_name = "webpresence-geocore-geojson-to-parquet-dev"
 bucket_name_nlp='nlp-data-preprocessing'
-selected_var = ['features_properties_id', 'features_properties_title_en','features_properties_description_en','features_properties_keywords_en']
+selected_var = ['features_properties_id', 'features_properties_title_en', 'features_properties_title_en','features_properties_description_en','features_properties_keywords_en']
 
 def lambda_handler(event, context):
     #Change directory to /tmp folder
