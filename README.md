@@ -23,8 +23,9 @@ The following models are being used.
 
 1. Word2Vec
 2. BERT
-3. RoBERTa - base models
-4. stsb-roberta-large
+3. [DistillBERT](https://huggingface.co/docs/transformers/model_doc/distilbert) -> A smaller (up to 40% reduction in size during pretraining) and faster (up to 60% faster); preserves 95% of the BERT's performance on the GLUE Benchmark.
+4. RoBERTa - base models
+5. stsb-roberta-large
 
 
 ## Evaluation
