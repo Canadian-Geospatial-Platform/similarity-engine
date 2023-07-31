@@ -3,15 +3,19 @@ import boto3
 import logging 
 from botocore.exceptions import ClientError
 import pandas as pd 
+
+
 import numpy as np
 import json
 import datetime
+
 import io
 import os 
 
 from gensim.models import Word2Vec
 from sklearn.metrics.pairwise import cosine_similarity
 from gensim import matutils
+
 from tqdm import tqdm
 from dynamodb import * 
 
@@ -31,6 +35,15 @@ def lambda_handler(event, context):
         
     # Read the preprocessed data from S3 
     df_en = open_S3_file_as_df(bucket_name_nlp, file_name)
+    
+    # Get a sample of 500 rows as the training data 
+    df = df_en[['features_properties_id', 'features_properties_title_en', 'metadata_en_processed']]
+    #df = df.sample(n=500, random_state=1)
+    # Use all data to train the model
+    df.head()
+    print(df.shape)
+
+
     # Use all data to train the model
     df = df_en[['features_properties_id', 'features_properties_title_en', 'features_properties_title_fr','metadata_en_processed']]
     print(f'The shape of the preprocessed df is {df.shape}')
@@ -51,6 +64,19 @@ def lambda_handler(event, context):
     # Calculate similarity between each vector and all others
     similarity_matrix = cosine_similarity(np.array(vectors.tolist()))
     
+
+    # Initialize new columns for the top 5 similar texts
+    df['sim1'], df['sim2'], df['sim3'], df['sim4'], df['sim5'] = "", "", "", "", ""
+    
+    # For each text, find the top 5 most similar texts and append their 'features_properties_title_en' as new columns
+    df.reset_index(drop=True, inplace=True)
+    for i in tqdm(range(similarity_matrix.shape[0])):
+        top_5_similar = np.argsort(-similarity_matrix[i, :])[1:6]  # Exclude the text itself
+        df.loc[i, ['sim1', 'sim2', 'sim3', 'sim4', 'sim5']] = df.loc[top_5_similar, 'features_properties_title_en'].values
+
+    # Read the original parquet file and merge by features_properties_id
+    df_original = open_S3_file_as_df(bucket_name, file_name_origianl)
+    merged_df = df_original.merge(df[['features_properties_id', 'sim1', 'sim2', 'sim3', 'sim4', 'sim5']], on='features_properties_id', how='left')
     """ Option 1: merge the similar results with records.parquet directly 
     # Initialize new columns for the top 10 similar texts
     df['sim1'], df['sim2'], df['sim3'], df['sim4'], df['sim5'],df['sim6'], df['sim7'], df['sim8'], df['sim9'], df['sim10'] = "", "", "", "", "","", "", "", "", ""
@@ -124,9 +150,6 @@ def lambda_handler(event, context):
             print(e)  
     #Batch write to table 
     batch_write_items_into_table(df, TableName='similarity')
-    
-    
-    
     
 # Function to read the parquet file as pandas dataframe 
 def open_S3_file_as_df(bucket_name, file_name):
