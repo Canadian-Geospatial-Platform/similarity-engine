@@ -1,5 +1,0 @@
-pandas
-nltk
-pyarrow
-fastparquet
-requests

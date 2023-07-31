@@ -9,3 +9,9 @@ Jupyter_notebooks/outputs/
 Jupyter_notebooks/wandb
 
 wandb_config.json
+
+
+demos/
+data/
+
+.gitignore
