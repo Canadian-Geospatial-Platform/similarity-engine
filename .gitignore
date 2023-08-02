@@ -6,12 +6,39 @@ Jupyter_notebooks/cache_dir/
 Jupyter_notebooks/checkpoints/
 Jupyter_notebooks/runs/
 Jupyter_notebooks/outputs/
-Jupyter_notebooks/wandb
+Jupyter_notebooks/wandb/
+
+notebooks/cache_dir/
+notebooks/checkpoints/
+notebooks/runs/
+notebooks/outputs/
+notebooks/wandb/
+
+.vscode/
 
 wandb_config.json
 
-
-demos/
 data/
 
 .gitignore
+
+src/models/__pycache__/
+src/utils/__pycache__/
+*/.ipynb_checkpoints/
+
+demos/__pycache__
+
+*/.mypy
+
+
+saved_models/
+*/.mypy
+
+saved_models/
+src/models/compare_models.py
+src/models/wandb/
+wandb/
+
+
+Jupyter_notebooks/
+scripts/
