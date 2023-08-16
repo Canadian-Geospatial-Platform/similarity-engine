@@ -1,6 +1,24 @@
-Create zip package for cloud formation 
+# Cloud Formation Package for Similarity Engine using Word2Vec
 
-cd similarity-engine-word2vec-model-dev/ (changd path to where the requirement.txt is)
-pip install -t similarity-engine-word2vec-model-build/ -r requirements.txt
-cd similarity-engine-word2vec-model-build/
-zip -r similarity-engine-word2vec-model.zip ../app.py ../__init.py__ ./*
+Follow the steps below to create the zip package:
+
+1. Navigate to the directory where the `requirements.txt` is:
+    ```
+    cd similarity-engine-word2vec-model-dev/
+    ```
+
+2. Install the required packages:
+    ```
+    pip install -t similarity-engine-word2vec-model-build/ -r requirements.txt
+    ```
+
+3. Change to the build directory:
+    ```
+    cd similarity-engine-word2vec-model-build/
+    ```
+
+4. Zip the necessary files:
+    ```
+    zip -r similarity-engine-word2vec-model.zip ../app.py ../dynamodb.py ../__init.py__ ./*
+
+    ```
