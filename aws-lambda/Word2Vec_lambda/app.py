@@ -1,4 +1,9 @@
 
+try:
+  import unzip_requirements
+except ImportError:
+  pass
+
 import boto3
 import logging 
 from botocore.exceptions import ClientError
@@ -12,7 +17,6 @@ import os
 from gensim.models import Word2Vec
 from sklearn.metrics.pairwise import cosine_similarity
 from gensim import matutils
-from tqdm import tqdm
 from dynamodb import * 
 
 
@@ -23,14 +27,19 @@ file_name_origianl = "records.parquet"
 bucket_name = "webpresence-geocore-geojson-to-parquet-dev"
 
 def lambda_handler(event, context):
+    """
     #Change directory to /tmp folder, this is required if new files are created for lambda 
     os.chdir('/tmp')    #This is important
     #Make a directory
     if not os.path.exists(os.path.join('mydir')):
         os.makedirs('mydir')
-        
+    """    
     # Read the preprocessed data from S3 
-    df_en = open_S3_file_as_df(bucket_name_nlp, file_name)
+    try:
+        df_en = open_S3_file_as_df(bucket_name_nlp, file_name)
+    except ClientError as e:
+        print(e.response['Error']['Message'])
+    
     # Use all data to train the model
     df = df_en[['features_properties_id', 'features_properties_title_en', 'features_properties_title_fr','metadata_en_processed']]
     print(f'The shape of the preprocessed df is {df.shape}')
@@ -60,7 +69,7 @@ def lambda_handler(event, context):
     df['similarity'] = np.nan  # Initialize the column
     # For each text, find the top 10 most similar texts and save them as a JSON array object in the 'similarity' column
     df.reset_index(drop=True, inplace=True)
-    for i in tqdm(range(similarity_matrix.shape[0])):
+    for i in range(similarity_matrix.shape[0]):
         top_10_similar = np.argsort(-similarity_matrix[i, :])[1:11]  # Exclude the text itself
         sim_array = []
         for j, idx in enumerate(top_10_similar):

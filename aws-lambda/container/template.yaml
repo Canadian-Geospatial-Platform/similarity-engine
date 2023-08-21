@@ -1,0 +1,68 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  python3.9
+
+  Sample SAM Template for similarity-engine-word2vec-model
+
+Globals:
+  Function:
+    Timeout: 900
+    Tracing: Active
+  Api:
+    TracingEnabled: True
+
+Resources:
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess        
+      Policies:
+        - PolicyName: 'policy'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: 'Allow'
+                Action:
+                  - 's3:*'
+                Resource:
+                  - !Sub arn:aws:s3:::nlp-data-preprocessing/*
+                  - !Sub arn:aws:s3:::nlp-data-preprocessing
+                  - !Sub arn:aws:s3:::webpresence-geocore-geojson-to-parquet-dev/*
+                  - !Sub arn:aws:s3:::webpresence-geocore-geojson-to-parquet-dev
+
+                  
+  SimilarityEngineWord2VecFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      PackageType: Image
+      ImageUri: 006288227511.dkr.ecr.ca-central-1.amazonaws.com/similarity-engine-word2vec-python39-lambda:latest
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Architectures:
+      - x86_64
+      MemorySize: 1024
+      Events:
+        SimilarityEngineWord2Vec:
+          Type: Api
+          Properties:
+            Path: /similarity-engine-word2vec-model-dev
+            Method: get
+
+Outputs:
+  SimilarityEngineWord2VecFunctionApi:
+    Description: "API Gateway endpoint URL for Prod stage for Similarity Engine Data Process function"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello/"
+  SimilarityEngineWord2VecFunction:
+    Description: "Similarity Engine Data Process Lambda Function ARN"
+    Value: !GetAtt SimilarityEngineWord2VecFunction.Arn
