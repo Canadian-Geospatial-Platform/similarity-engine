@@ -42,3 +42,5 @@ wandb/
 
 Jupyter_notebooks/
 scripts/
+
+aws_credentials.json

@@ -18,7 +18,9 @@ from sklearn.metrics.pairwise import cosine_similarity
 # from custom_dataset import CustomDataset
 from custom_model import CustomModel
 
+sys.path.append("src/")
 
+from utils.data_loading import load_processed_parquet
 from datasets import Dataset
 
 
@@ -32,6 +34,7 @@ argparse.add_argument('--epochs', type=int, default=20)
 argparse.add_argument('--lr', type=float, default=2e-5)
 argparse.add_argument('--load_model_path', type=str, default='')
 argparse.add_argument('--train_on_full_data', type=bool, default=True)
+argparse.add_argument('--load_from_aws', type=bool, default=True)
 
 
 args = argparse.parse_args()
@@ -47,9 +50,6 @@ if args.train_on_full_data == 'True':
     args.train_on_full_data = True
 print("Train on full data: ", args.train_on_full_data)
 
-if args.train_on_full_data == 'True':
-    args.train_on_full_data = True
-print("Train on full data: ", args.train_on_full_data)
 
 # Initialize wandb and login.
 # wandb.init(project='geo.ca')
@@ -59,10 +59,13 @@ args.output_dir = "/home/rsaha/projects/similarity-engine/saved_models/trainer_b
 
 
 # Load the data.
-if platform.system() == 'Windows':
-    df = pd.read_csv('D:\\similarity-engine\\notebooks\\df_training_full.csv')
+if args.load_from_aws:
+    df = load_processed_parquet()
 else:
-    df = pd.read_csv('/home/rsaha/projects/similarity-engine/notebooks/df_training_full.csv')
+    if platform.system() == 'Windows':
+        df = pd.read_csv('D:\\similarity-engine\\notebooks\\df_training_full.csv')
+    else:
+        df = pd.read_csv('/home/rsaha/projects/similarity-engine/notebooks/df_training_full.csv')
 
 df = df.fillna('')
 df['merged'] = df['features_properties_title_en'] + ' ' + df['metadata_en_processed']
@@ -94,7 +97,9 @@ df['embeddings'] = df['merged'].apply(model.get_embeddings)
 # # Calculate the similarity matrix.
 similarity_matrix = cosine_similarity(np.vstack(df['embeddings']))
 df['top_10_similar'] = [list(df.iloc[np.argsort(-row)][1:11].index) for row in similarity_matrix]
-df.to_csv("/home/rsaha/projects/similarity-engine/data/train_fine_tune_full_data_sim_matrix.csv")
+df['top_20_similar'] = [list(df.iloc[np.argsort(-row)][1:21].index) for row in similarity_matrix]
+df = df.drop(columns=['embeddings'])
+df.to_csv("/home/rsaha/projects/similarity-engine/data/train_fine_tune_full_data_sim_matrix_no_embeds.csv")
 # np.savez_compressed('/home/rsaha/projects/similarity-engine/data/df_bert_cls_similarity_matrix.npz', similarity_matrix)
 
 print(model)
