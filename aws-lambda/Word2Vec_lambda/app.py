@@ -1,9 +1,3 @@
-
-try:
-  import unzip_requirements
-except ImportError:
-  pass
-
 import boto3
 import logging 
 from botocore.exceptions import ClientError
@@ -20,11 +14,19 @@ from gensim import matutils
 from dynamodb import * 
 
 
-#dev setting 
+# environment variables for lambda
+file_name = os.environ['FILE_NAME']
+file_name_origianl = os.environ['FILE_NAME_ORIGINAL']
+bucket_name_nlp = os.environ['BUCKET_NAME_NLP']
+bucket_name = os.environ['BUCKET_NAME']
+
+"""
+#dev setting  -- comment out for release
 file_name = "Processed_records.parquet"
 bucket_name_nlp = "nlp-data-preprocessing"
 file_name_origianl = "records.parquet"
 bucket_name = "webpresence-geocore-geojson-to-parquet-dev"
+"""
 
 def lambda_handler(event, context):
     """
@@ -38,11 +40,15 @@ def lambda_handler(event, context):
     try:
         df_en = open_S3_file_as_df(bucket_name_nlp, file_name)
     except ClientError as e:
+        print('Accessing the S3 was failed on line 47 when calling  df_en = open_S3_file_as_df(bucket_name_nlp, file_name)')
         print(e.response['Error']['Message'])
     
     # Use all data to train the model
     df = df_en[['features_properties_id', 'features_properties_title_en', 'features_properties_title_fr','metadata_en_processed']]
     print(f'The shape of the preprocessed df is {df.shape}')
+        # Replace the missing value in the 'features_properties_title_en' column with an empty string
+    df['features_properties_title_en'].fillna('', inplace=True)
+    
     
     # Prepare the input for the Word2Vec model
     sentences = df['metadata_en_processed'].apply(lambda x: x.split(' ')).tolist()
@@ -54,8 +60,7 @@ def lambda_handler(event, context):
     
     # Convert each sentence in 'metadata_preprocessed' into a vector
     vectors = df['metadata_en_processed'].apply(sentence_to_vector, model=model)
-    # Replace the missing value in the 'features_properties_title_en' column with an empty string
-    df['features_properties_title_en'].fillna('', inplace=True)
+
     
     # Calculate similarity between each vector and all others
     similarity_matrix = cosine_similarity(np.array(vectors.tolist()))

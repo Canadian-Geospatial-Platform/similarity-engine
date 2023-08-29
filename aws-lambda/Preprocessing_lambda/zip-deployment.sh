@@ -1,3 +1,9 @@
+#!/bin/bash
+# Build Cloud Formation Zip Package for Similarity Engine using Data Preprocessing
+# Author: Xinli Cai 
+# Date: August 29, 2023 
+
+
 # Navigate to the directory containing `requirements.txt`
 cd similarity-engine-data-process/
 
