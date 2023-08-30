@@ -3,3 +3,4 @@ nltk
 pyarrow
 fastparquet
 requests
+urllib3<2

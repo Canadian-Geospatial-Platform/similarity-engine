@@ -8,31 +8,39 @@ import os
 import nltk
 from nltk.corpus import stopwords          # module for stop words that come with NLTK
 from nltk.stem import PorterStemmer        # module for stemming
-from nltk.tokenize import word_tokenize   # module for tokenizing strings       
-nltk.download('punkt')
-nltk.download('stopwords')
+from nltk.tokenize import word_tokenize   # module for tokenizing strings  
+
+#nltk.download('punkt')
+#nltk.download('stopwords')
 
 import re
 
-# Environment variables
+# environment variables for lambda
+file_name = os.environ['FILE_NAME']
+bucket_name = os.environ['BUCKET_NAME']
+bucket_name_nlp = os.environ['BUCKET_NAME_NLP']
+
+"""
+#dev setting  -- comment out for release
 file_name = "records.parquet"
 bucket_name = "webpresence-geocore-geojson-to-parquet-dev"
 bucket_name_nlp='nlp-data-preprocessing'
-
-selected_var = ['features_properties_id', 'features_properties_title_en', 'features_properties_title_en','features_properties_description_en','features_properties_keywords_en']
+"""
 
 def lambda_handler(event, context):
+    
     #Change directory to /tmp folder
     os.chdir('/tmp')    #This is important
+    """
     #Make a directory
     if not os.path.exists(os.path.join('mydir')):
         os.makedirs('mydir')
-        
+    """  
     df = open_S3_file_as_df(bucket_name, file_name)
     print(f'The shape of the raw metadata parquet dataset is {df.shape}')
 
     # Select key columns, currently only english
-    df_en = df[selected_var]
+    df_en = df[['features_properties_id', 'features_properties_title_en','features_properties_title_fr','features_properties_description_en','features_properties_keywords_en']]
     # Replace NaN and "Not Available; Indisponible" with empty string 
     print("The NaN values in the English columns are \n") 
     df_en = df_en.fillna('')
@@ -58,7 +66,7 @@ def lambda_handler(event, context):
     #print(duplicateRowsDF['features_properties_id'].unique())
    
     # Save to temp  folder, see https://iotespresso.com/temporary-storage-during-aws-lambda-runtime-python/
-    save_path = os.path.join(os.getcwd(), 'mydir', 'duplicateRowsDF')
+    save_path = os.path.join(os.getcwd(), 'duplicateRowsDF')
     duplicateRowsDF.to_csv(save_path)
     df_fetched= pd.read_csv(save_path)
     

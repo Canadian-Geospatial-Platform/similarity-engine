@@ -1,5 +1,7 @@
-gensim==4.1.2
-scikit-learn==1.0
-pyarrow
-fastparquet
-tqdm
+pandas
+numpy
+scikit-learn
+transformers
+torch
+pyarrow 
+fastparquet 
