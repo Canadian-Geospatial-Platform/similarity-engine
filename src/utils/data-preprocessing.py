@@ -10,7 +10,6 @@ from nltk.corpus import stopwords          # module for stop words that come wit
 from nltk.stem import PorterStemmer        # module for stemming
 from nltk.tokenize import word_tokenize   # module for tokenizing strings                            # for string operations
 import re
-import nbformat
 
 
 
@@ -91,7 +90,10 @@ bucket_name = "webpresence-geocore-geojson-to-parquet-dev"
 bucket_name_nlp='nlp-data-preprocessing'
 selected_var = ['features_properties_id', 'features_properties_title_fr','features_properties_title_en','features_properties_description_en','features_properties_keywords_en']
 
-df = open_S3_file_as_df(bucket_name, file_name)
+# df = open_S3_file_as_df(bucket_name, file_name)
+
+df = pd.read_parquet('/home/rsaha/projects/similarity-engine/data/records.parquet')
+
 print(f'The shape of the raw metadata parquet dataset is {df.shape}')
 
 # Select key columns, currently only english
@@ -119,10 +121,10 @@ print('The length of the uuids of the duplicated rows are: ')
 print(len(duplicateRowsDF['features_properties_id'].unique()))
 print(duplicateRowsDF['features_properties_id'].unique())
 
-upload_dataframe_to_s3_as_parquet(df=duplicateRowsDF,  bucket_name=bucket_name_nlp, file_key='Duplicated_records.parquet')  
+# upload_dataframe_to_s3_as_parquet(df=duplicateRowsDF,  bucket_name=bucket_name_nlp, file_key='Duplicated_records.parquet')  
 
 # Apply text preprocessing to the 'Text' column
 df_en['metadata_en_processed'] = df_en['metadata_en'].apply(process_tokens)
 
 # Upload the processed dataframe to S3
-upload_dataframe_to_s3_as_parquet(df=df_en,  bucket_name=bucket_name_nlp, file_key='Processed_records.parquet')  
+# upload_dataframe_to_s3_as_parquet(df=df_en,  bucket_name=bucket_name_nlp, file_key='Processed_records.parquet')  

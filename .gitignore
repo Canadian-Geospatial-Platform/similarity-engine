@@ -19,6 +19,7 @@ notebooks/wandb/
 wandb_config.json
 
 data/
+/home/rsaha/projects/similarity-engine/data/
 
 .gitignore
 
@@ -44,3 +45,6 @@ Jupyter_notebooks/
 scripts/
 
 aws_credentials.json
+
+secrets.json
+temp.parquet
