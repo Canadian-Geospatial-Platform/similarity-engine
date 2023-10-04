@@ -19,7 +19,11 @@ notebooks/wandb/
 wandb_config.json
 
 data/
+form_builder_data/
 /home/rsaha/projects/similarity-engine/data/
+data/records.parquet
+
+rec_images_for_gform/
 
 .gitignore
 
@@ -39,6 +43,7 @@ saved_models/
 src/models/compare_models.py
 src/models/wandb/
 wandb/
+curriculum_learning/
 
 
 Jupyter_notebooks/
