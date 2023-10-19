@@ -2,7 +2,10 @@
 One file containing the the training and evaluation for multiple transformer models.
 """
 import sys
-from transformers import AutoModel, AutoTokenizer, BertForMaskedLM, DataCollatorForLanguageModeling
+from transformers import (
+    AutoModel, AutoTokenizer, BertForMaskedLM, DataCollatorForLanguageModeling,
+    RobertaForMaskedLM, DistilBertForMaskedLM, RobertaModel
+)
 from transformers import get_scheduler
 from transformers import TrainingArguments, Trainer
 import numpy as np
@@ -26,17 +29,24 @@ from torch.optim import AdamW
 from tqdm import tqdm, trange
 
 class CustomModel():
-    def __init__(self, args, load_model_from_path=False, model_path=None):
+    def __init__(self, args, load_model_from_path=False, model_path=None, wandb_object=None):
         self.args = args
         self.device = args.device
+        self.wandb_object = wandb_object
 
         if load_model_from_path:
             self.load_model(model_path)
             self.model.to(self.device)
         else:
-            if 'bert' in self.args.model_name:
+            if self.args.model_name in ['bert-base-uncased', 'bert-large-uncased']:
                 print("Loading pretrained model from HuggingFace Hub.")
                 self.model = BertForMaskedLM.from_pretrained(self.args.model_name)
+                self.tokenizer = AutoTokenizer.from_pretrained(self.args.model_name)
+            elif self.args.model_name in ['roberta-base', 'roberta-large', 'distilroberta-base']:
+                self.model = RobertaForMaskedLM.from_pretrained(self.args.model_name)
+                self.tokenizer = AutoTokenizer.from_pretrained(self.args.model_name)
+            elif self.args.model_name in ['distilbert-base-uncased']:
+                self.model = DistilBertForMaskedLM.from_pretrained(self.args.model_name)
                 self.tokenizer = AutoTokenizer.from_pretrained(self.args.model_name)
             else:
                 raise ValueError('Model not supported.')
@@ -82,6 +92,8 @@ class CustomModel():
             num_train_epochs=self.args.epochs,
             weight_decay=0.01,
             push_to_hub=False,
+            report_to="wandb",
+            run_name=f"{self.args.model_name}_finetuned_{self.args.epochs}_epochs",
         )   
         trainer = Trainer(
             model=model,
@@ -99,6 +111,9 @@ class CustomModel():
         print("Evaluating at the end of training.")
         print("Evaluation results: ", eval_results)
         print(f"Perplexity: {math.exp(eval_results['eval_loss']):.2f}")
+        self.wandb_object.log({"perplexity": math.exp(eval_results['eval_loss'])})
+        
+        return eval_results['eval_loss']
 
 
     def load_model(self, model_path):
@@ -144,6 +159,7 @@ class CustomModel():
         print("Evaluating only")
         print("Evaluation results: ", eval_results)
         print(f"Perplexity: {math.exp(eval_results['eval_loss']):.2f}")
+        return eval_results['eval_loss']
 
 
     def train_model(self, data):
@@ -249,7 +265,7 @@ class CustomModel():
             # Tokenize embeddings.
             outputs = model(**tokenized_embeddings, output_hidden_states=True)
             cls_embedding = outputs.hidden_states[-1][:, 0, :].cpu().detach().numpy()
-            print("CLS embedding shape: ", cls_embedding.shape)
+            # print("CLS embedding shape: ", cls_embedding.shape)
             return cls_embedding
         else:
             pass
