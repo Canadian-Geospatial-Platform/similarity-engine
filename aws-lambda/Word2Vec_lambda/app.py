@@ -16,7 +16,7 @@ from dynamodb import *
 
 # environment variables for lambda
 file_name = os.environ['FILE_NAME']
-file_name_origianl = os.environ['FILE_NAME_ORIGINAL']
+file_name_original = os.environ['FILE_NAME_ORIGINAL']
 bucket_name_nlp = os.environ['BUCKET_NAME_NLP']
 bucket_name = os.environ['BUCKET_NAME']
 
@@ -24,7 +24,7 @@ bucket_name = os.environ['BUCKET_NAME']
 #dev setting  -- comment out for release
 file_name = "Processed_records.parquet"
 bucket_name_nlp = "nlp-data-preprocessing"
-file_name_origianl = "records.parquet"
+file_name_original = "records.parquet"
 bucket_name = "webpresence-geocore-geojson-to-parquet-dev"
 """
 
@@ -40,9 +40,15 @@ def lambda_handler(event, context):
     try:
         df_en = open_S3_file_as_df(bucket_name_nlp, file_name)
     except ClientError as e:
-        print('Accessing the S3 was failed on line 47 when calling  df_en = open_S3_file_as_df(bucket_name_nlp, file_name)')
+        print('Accessing the S3 failed on line 41 when calling  df_en = open_S3_file_as_df(bucket_name_nlp, file_name)')
         print(e.response['Error']['Message'])
-    
+   
+    try:
+        df_original = open_S3_file_as_df(bucket_name, file_name_original)
+    except ClientError as e:
+        print('Accessing the S3 failed on line 49')
+        print(e.response['Error']['Message'])
+
     # Use all data to train the model
     df = df_en[['features_properties_id', 'features_properties_title_en', 'features_properties_title_fr','metadata_en_processed']]
     print(f'The shape of the preprocessed df is {df.shape}')
@@ -74,15 +80,29 @@ def lambda_handler(event, context):
     df['similarity'] = np.nan  # Initialize the column
     # For each text, find the top 10 most similar texts and save them as a JSON array object in the 'similarity' column
     df.reset_index(drop=True, inplace=True)
+
+    df_original_indexed = df_original.set_index('features_properties_id')
     for i in range(similarity_matrix.shape[0]):
         top_10_similar = np.argsort(-similarity_matrix[i, :])[1:11]  # Exclude the text itself
         sim_array = []
         for j, idx in enumerate(top_10_similar):
+            prop_id = df.loc[idx, 'features_properties_id']
+
+            if prop_id in df_original_indexed.index:
+                matching_row = df_original_indexed.loc[prop_id]
+                desc_en = str(matching_row['features_properties_description_en'])[:200]
+                desc_fr = str(matching_row['features_properties_description_fr'])[:200]
+            else:
+                desc_en = ''
+                desc_fr = ''
+
             sim_obj = {
             'sim': f'sim{j+1}',
-            'features_properties_id': df.loc[idx, 'features_properties_id'],
+            'features_properties_id': prop_id,
             'features_properties_title_en': df.loc[idx, 'features_properties_title_en'],
-            'features_properties_title_fr': df.loc[idx, 'features_properties_title_fr']
+            'features_properties_title_fr': df.loc[idx, 'features_properties_title_fr'],
+            'features_properties_description_en': desc_en,
+            'features_properties_description_fr': desc_fr
             }
             sim_array.append(sim_obj)
         df.loc[i, 'similarity'] = json.dumps(sim_array)
